@@ -1,0 +1,19 @@
+{
+  "auth": "zef:markldevine",
+  "authors": [ "Mark Devine <mark@markdevine.com>" ],
+  "depends": [],
+  "description": "ISP dsmadmc",
+  "license": "Artistic-2.0",
+  "meta-version": 0,
+  "name": "ISP::dsmadmc",
+  "perl": "6.*",
+  "provides": {
+    "ISP::dsmadmc": "lib/ISP/dsmadmc.rakumod"
+  },
+  "resources": [],
+  "source-url": "https://github.com/markldevine/ISP-dsmadmc.git",
+  "tags": [
+    "ISP"
+  ],
+  "version": "0.0.1"
+}
