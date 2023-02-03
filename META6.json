@@ -4,7 +4,7 @@
   "depends": [
     "Data::Dump::Tree",
     "KHPH",
-    "Terminal::ANSIColor",
+    "Terminal::ANSIColor"
   ],
   "description": "ISP dsmadmc",
   "license": "Artistic-2.0",
