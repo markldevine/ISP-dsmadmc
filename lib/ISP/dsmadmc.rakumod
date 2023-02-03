@@ -88,40 +88,28 @@ method execute (@cmd!) {
                         :in,
                         :out;
 
-for $proc.out.lines -> $line {
-}
-
-
-    my $out     = $proc.out.slurp(:close);
-    if $out {
-        my @out;
-        my $out-index   = 0;
-        my $head-key;
-        for $out.split("\n") -> $line {
-put '|' ~ $line ~ '|';
-            if $line ~~ / ^ \s* (.+?) ':' \s+ (.+) \s* $ / {
-                my $f1 = $/[0];
-                my $f2 = $/[1];
-                if $head-key && $f1 eq $head-key {
-                    $out-index++;
-                }
-                elsif ! defined $head-key {
-                    $head-key = $f1;
-                    @out[$out-index] = Hash.new;
-                }
-                @out[$out-index]{$f1} = $f2;
+    my @out;
+    my $index   = 0;
+    my $head-key;
+    for $proc.out.lines -> $line {
+        if $line ~~ / ^ \s* (.+?) ':' \s+ (.+) \s* $ / {
+            my $f1 = $/[0];
+            my $f2 = $/[1];
+            if $head-key && $f1 eq $head-key {
+                $index++;
             }
-            elsif $line ~~ / '<' ENTER '>' to continue / {
-                die;
+            elsif ! defined $head-key {
+                $head-key = $f1;
+                @out[$index] = Hash.new;
             }
-            elsif $line !~~ / ^ $ / {
-                $proc.in.print: "\r";
-            }
+            @out[$index]{$f1} = $f2;
         }
-        return(@out);
     }
+    $proc.out.close;
+    $proc.in.close;
     my $err     = $proc.err.slurp(:close);
     put $err    if $err;
+    return(@out);
 }
 
 =finish
