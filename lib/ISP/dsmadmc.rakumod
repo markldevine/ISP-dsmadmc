@@ -106,7 +106,6 @@ method execute (@cmd!) {
             @out[$index]{$f1} = $f2;
         }
     }
-    $proc.out.close;
     my $err     = $proc.err.slurp(:close);
     put $err    if $err;
     return(@out) if @out.elems;
