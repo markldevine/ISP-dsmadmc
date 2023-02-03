@@ -92,9 +92,12 @@ method execute (@cmd!) {
     my $index   = 0;
     my $head-key;
     for $proc.out.lines -> $line {
-        if $line ~~ / ^ \s* (.+?) ':' \s+ (.+) \s* $ / {
+        if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1 = $/[0];
-            my $f2 = $/[1];
+            my $f2 = Nil;
+            if $/[1] {
+                $f2 = $/[1];
+            }
             if $head-key && $f1 eq $head-key {
                 $index++;
             }
