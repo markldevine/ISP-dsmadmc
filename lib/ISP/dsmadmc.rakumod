@@ -85,9 +85,7 @@ method execute (@cmd!) {
                         '-DISPLAYMODE=LIST',
                         @cmd.flat,
                         :err,
-                        :in,
                         :out;
-
     my @out;
     my $index   = 0;
     my $head-key;
@@ -109,10 +107,10 @@ method execute (@cmd!) {
         }
     }
     $proc.out.close;
-    $proc.in.close;
     my $err     = $proc.err.slurp(:close);
     put $err    if $err;
-    return(@out);
+    return(@out) if @out.elems;
+    return Nil;
 }
 
 =finish
