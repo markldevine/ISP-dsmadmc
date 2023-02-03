@@ -72,7 +72,12 @@ submethod TWEAK {
 }
 
 method execute (@cmd!) {
-    my $proc    = run   '/usr/bin/dsmadmc',
+    my $proc    = run
+                        '/usr/bin/stdbuf',
+                        '-i0',  
+                        '-o0',  
+                        '-e0',
+                        '/usr/bin/dsmadmc',
                         '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
                         '-ID=' ~ $!isp-admin,
                         '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
@@ -80,15 +85,20 @@ method execute (@cmd!) {
                         '-DISPLAYMODE=LIST',
                         @cmd.flat,
                         :err,
+                        :in,
                         :out;
-    my $err     = $proc.err.slurp(:close);
-    put $err    if $err;
+
+for $proc.out.lines -> $line {
+}
+
+
     my $out     = $proc.out.slurp(:close);
     if $out {
         my @out;
         my $out-index   = 0;
         my $head-key;
         for $out.split("\n") -> $line {
+put '|' ~ $line ~ '|';
             if $line ~~ / ^ \s* (.+?) ':' \s+ (.+) \s* $ / {
                 my $f1 = $/[0];
                 my $f2 = $/[1];
@@ -101,9 +111,17 @@ method execute (@cmd!) {
                 }
                 @out[$out-index]{$f1} = $f2;
             }
+            elsif $line ~~ / '<' ENTER '>' to continue / {
+                die;
+            }
+            elsif $line !~~ / ^ $ / {
+                $proc.in.print: "\r";
+            }
         }
         return(@out);
     }
+    my $err     = $proc.err.slurp(:close);
+    put $err    if $err;
 }
 
 =finish
