@@ -4,6 +4,7 @@
   "depends": [
     "Data::Dump::Tree",
     "KHPH",
+    "Term::Choose",
     "Terminal::ANSIColor"
   ],
   "description": "ISP dsmadmc",

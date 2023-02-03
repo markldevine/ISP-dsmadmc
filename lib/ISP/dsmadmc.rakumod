@@ -1,12 +1,13 @@
 unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
 use KHPH;
+use Term::Choose;
 use Terminal::ANSIColor;
 
 my @redis-servers;
 my %isp-servers;
 
-has $.isp-server is required;
+has $.isp-server;
 has $.isp-admin  is required;
 
 submethod TWEAK {
@@ -45,6 +46,12 @@ submethod TWEAK {
                 %isp-servers = $out.chomp.split("\n").map: { $_.uc => 0 };
                 last;
             }
+        }
+    }
+    unless $!isp-server {
+        my $tc = Term::Choose.new( :0mouse, :0order );
+        until $!isp-server {
+            $!isp-server = $tc.choose(%isp-servers.keys.sort, :2layout, :0default);  #%%% stash last used in ~/.isp-dsmadmc and set to default
         }
     }
     unless %isp-servers{$!isp-server.uc}:exists {
