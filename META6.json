@@ -1,7 +1,11 @@
 {
   "auth": "zef:markldevine",
   "authors": [ "Mark Devine <mark@markdevine.com>" ],
-  "depends": [],
+  "depends": [
+    "Data::Dump::Tree",
+    "KHPH",
+    "Terminal::ANSIColor",
+  ],
   "description": "ISP dsmadmc",
   "license": "Artistic-2.0",
   "meta-version": 0,
