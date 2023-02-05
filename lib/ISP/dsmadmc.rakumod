@@ -17,6 +17,7 @@ submethod TWEAK {
     else {
         die 'Unable to initialized without ~/.redis-servers';
     }
+    constant $isp-server-keys-base  = 'eb:isp:servers';
     my @redis-clis;
     for @redis-servers -> $redis-server {
         my @cmd-string = sprintf("ssh -L 127.0.0.1:6379:%s:6379 %s /usr/bin/redis-cli", $redis-server, $redis-server).split: /\s+/;
@@ -26,7 +27,7 @@ submethod TWEAK {
         my @rcmd        = flat @redis-cli,
                         '--raw',
                         'KEYS',
-                        'eb:isp:servers:*';
+                        $isp-server-keys-base ~ ' :*';
         my $proc        = run   @rcmd, :out, :err;
         my $out         = $proc.out.slurp(:close);
         my $err         = $proc.err.slurp(:close);
