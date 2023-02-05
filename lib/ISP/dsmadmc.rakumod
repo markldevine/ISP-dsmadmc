@@ -49,9 +49,14 @@ submethod TWEAK {
         }
     }
     unless $!isp-server {
-        my $tc = Term::Choose.new( :0mouse, :0order );
-        until $!isp-server {
-            $!isp-server = $tc.choose(%isp-servers.keys.sort, :2layout, :0default);  #%%% stash last used in ~/.isp-dsmadmc and set to default
+        if $*OUT.t {
+            my $tc = Term::Choose.new( :0mouse, :0order );
+            until $!isp-server {
+                $!isp-server = $tc.choose(%isp-servers.keys.sort, :2layout, :0default);  #%%% stash last used in ~/.isp-dsmadmc and set to default
+            }
+        }
+        else {
+            die 'No ISP server specified!';
         }
     }
     unless %isp-servers{$!isp-server.uc}:exists {
