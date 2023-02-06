@@ -3,9 +3,8 @@
   "authors": [ "Mark Devine <mark@markdevine.com>" ],
   "depends": [
     "Data::Dump::Tree",
+    "ISP::Servers",
     "KHPH",
-    "Term::Choose",
-    "ISP::Server::Inventory",
     "Terminal::ANSIColor"
   ],
   "description": "ISP dsmadmc",
