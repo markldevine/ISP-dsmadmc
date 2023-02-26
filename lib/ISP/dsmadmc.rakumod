@@ -6,7 +6,22 @@ use Terminal::ANSIColor;
 
 has Str     $.isp-server            = '';
 has Str:D   $.isp-admin             is required;
-has Str     $.isp-server-timezone;
+
+#   DB2 (ISP's database engine) handles timezone specification in typical
+#   RDBMS fashion by storing the UTC offset in a compact way, requiring
+#   conversion to the end user's format.
+#
+#   DB2 stores the timezone offset as a signed integer with a possible negative sign,
+#   hours being variable 1 or 2 digits, minutes being 2 fixed digits, and seconds
+#   being 2 fixed digits.
+#
+#   -*hh*mmss
+#
+#   Being a signed integer, conversion is required before it is useful.
+
+has Int     $.db2-timezone-integer;     # DB2's original internal representation of the timezone
+has Str     $.timezone-hhmmss;          # "-05:00" format
+has Int     $.seconds-offset-UTC;       # seconds from UTC
 
 submethod TWEAK {
     my $isp-servers = ISP::Servers.new;
@@ -34,9 +49,9 @@ submethod TWEAK {
         unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
     if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
         my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
-        $!isp-server-timezone = $s.Str;
+        $!db2-timezone-integer = $s.Int;
     }
-    unless $!isp-server-timezone {
+    unless $!db2-timezone-integer {
         my $proc    = run
                         '/usr/bin/dsmadmc',
                         '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
@@ -47,10 +62,28 @@ submethod TWEAK {
                         'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
                         :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
-        $!isp-server-timezone = $0.Str.comb(2).join(':') if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
-        spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!isp-server-timezone;
+        if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
+            $!db2-timezone-integer = $0.Int;
+            spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!db2-timezone-integer;
+        }
+        else {
+            die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)';
+        }
     }
-    die 'Unable to determine DB2 timezone offset' unless $!isp-server-timezone;
+    my $h;
+    my $m;
+    my $s;
+    ($h, $m, $s) = $!db2-timezone-integer.Str.flip.comb(2).flip.split(' ');
+    $!timezone-hhmmss = $h ~ ':' ~ $m ~ ':' ~ $s;
+    if $h < 0 {
+        $!seconds-offset-UTC = -1 * (($h.abs * 3600) + ($m * 60) + $s);
+    }
+    else {
+        $!seconds-offset-UTC = (($h * 3600) + ($m * 60) + $s);
+    }
+put '$!db2-timezone-integer = <' ~ $!db2-timezone-integer ~ '>';
+put '     $!timezone-hhmmss = <' ~ $!timezone-hhmmss ~ '>';
+put '  $!seconds-offset-UTC = <' ~ $!seconds-offset-UTC ~ '>';
 }
 
 method execute (@cmd!) {
