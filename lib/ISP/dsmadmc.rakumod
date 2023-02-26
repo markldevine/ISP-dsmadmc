@@ -107,10 +107,8 @@ method execute (@cmd!) {
             my $f2 = Nil;
             if $/[1] {
                 $f2 = $/[1].Str;
-                if $f2 ~~ / ^ (\d ** 4) '-' (\d ** 2) '-' (\d ** 2) \s+ (\d ** 2) ':' (\d ** 2) ':' (\d ** 2) / {
-                    $f2 = DateTime.new(:year($0.Int), :month($1.Int), :day($2.Int), :hour($3.Int), :minute($4.Int), :second($5.Int));
-                    put $f2;
-                }
+                $f2 = DateTime.new(:year($0.Int), :month($1.Int), :day($2.Int), :hour($3.Int), :minute($4.Int), :second($5.Int))
+                    if $f2 ~~ / ^ (\d ** 4) '-' (\d ** 2) '-' (\d ** 2) \s+ (\d ** 2) ':' (\d ** 2) ':' (\d ** 2) /;
             }
             if $head-key && $f1 eq $head-key {
                 $index++;
