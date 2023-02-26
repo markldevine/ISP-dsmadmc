@@ -29,18 +29,29 @@ submethod TWEAK {
         }
     }
     die 'SERVERNAME stanza containing $!isp-server <' ~ $!isp-server.uc ~ "> not found in '/opt/tivoli/tsm/client/ba/bin/dsm.sys'" unless %stanzas{$!isp-server}:exists;
-    my $proc    = run
-                    '/usr/bin/dsmadmc',
-                    '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
-                    '-ID=' ~ $!isp-admin,
-                    '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
-                    '-DATAONLY=YES',
-                    '-DISPLAYMODE=LIST',
-                    'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
-                    :out;
-    my $stdout  = slurp($proc.out);             # Str $stdout = "TIMEZONE: -50000\n\n"
-    $!isp-server-timezone = $0.Int if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
-put $!isp-server-timezone;
+    mkdir $*HOME ~ '/.isp/servers/' ~ $!isp-server unless "$*HOME/.isp/servers/$!isp-server".IO.d;
+    unlink "$*HOME/.isp/servers/$!isp-server/timezone"
+        unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
+    if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
+        my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
+        $!isp-server-timezone = $s.Int;
+put 'Read $!isp-server-timezone: ' ~ $!isp-server-timezone;
+    }
+    unless $!isp-server-timezone {
+        my $proc    = run
+                        '/usr/bin/dsmadmc',
+                        '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
+                        '-ID=' ~ $!isp-admin,
+                        '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
+                        '-DATAONLY=YES',
+                        '-DISPLAYMODE=LIST',
+                        'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
+                        :out;
+        my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
+        $!isp-server-timezone = $0.Int if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
+        spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!isp-server-timezone;
+put 'Queried & stashed $!isp-server-timezone: ' ~ $!isp-server-timezone;
+    }
     die 'Unable to determine DB2 timezone offset' unless $!isp-server-timezone;
 }
 
