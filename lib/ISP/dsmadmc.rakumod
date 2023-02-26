@@ -4,10 +4,9 @@ use ISP::Servers;
 use KHPH;
 use Terminal::ANSIColor;
 
-has $!isp-server-inventory;
-
-has $.isp-server    = '';
-has $.isp-admin     is required;
+has Str     $.isp-server            = '';
+has Str:D   $.isp-admin             is required;
+has Int     $.isp-server-timezone;
 
 submethod TWEAK {
     my $isp-servers = ISP::Servers.new;
@@ -30,10 +29,23 @@ submethod TWEAK {
         }
     }
     die 'SERVERNAME stanza containing $!isp-server <' ~ $!isp-server.uc ~ "> not found in '/opt/tivoli/tsm/client/ba/bin/dsm.sys'" unless %stanzas{$!isp-server}:exists;
+    my $proc    = run
+                    '/usr/bin/dsmadmc',
+                    '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
+                    '-ID=' ~ $!isp-admin,
+                    '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
+                    '-DATAONLY=YES',
+                    '-DISPLAYMODE=LIST',
+                    'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
+                    :out;
+    my $stdout  = slurp($proc.out);             # Str $stdout = "TIMEZONE: -50000\n\n"
+    $!isp-server-timezone = $0.Int if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
+put $!isp-server-timezone;
+    die 'Unable to determine DB2 timezone offset' unless $!isp-server-timezone;
 }
 
 method execute (@cmd!) {
-    my $proc    = run
+    my $proc        = run
 #                       '/usr/bin/stdbuf',
 #                       '-i0',  
 #                       '-o0',  
@@ -48,7 +60,7 @@ method execute (@cmd!) {
                         :err,
                         :out;
     my @out;
-    my $index   = 0;
+    my $index       = 0;
     my $head-key;
     for $proc.out.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
@@ -56,6 +68,7 @@ method execute (@cmd!) {
             my $f2 = Nil;
             if $/[1] {
                 $f2 = $/[1];
+# if it's a datetime, store it accordingly right now as UTC.
             }
             if $head-key && $f1 eq $head-key {
                 $index++;
@@ -67,9 +80,9 @@ method execute (@cmd!) {
             @out[$index]{$f1} = $f2;
         }
     }
-    my $err     = $proc.err.slurp(:close);
-    put $err    if $err;
-    return(@out) if @out.elems;
+    my $err         = $proc.err.slurp(:close);
+    put $err        if $err;
+    return(@out)    if @out.elems;
     return Nil;
 }
 
