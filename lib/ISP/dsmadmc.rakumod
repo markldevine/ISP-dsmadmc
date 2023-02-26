@@ -34,7 +34,7 @@ submethod TWEAK {
         unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
     if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
         my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
-        $!isp-server-timezone = $s.comb(2).join(':').Str;
+        $!isp-server-timezone = $s.Str;
     }
     unless $!isp-server-timezone {
         my $proc    = run
@@ -47,7 +47,7 @@ submethod TWEAK {
                         'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
                         :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
-        $!isp-server-timezone = $0.Int if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
+        $!isp-server-timezone = $0.Str.comb(2).join(':') if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
         spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!isp-server-timezone;
     }
     die 'Unable to determine DB2 timezone offset' unless $!isp-server-timezone;
