@@ -35,7 +35,6 @@ submethod TWEAK {
     if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
         my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
         $!isp-server-timezone = $s.Int;
-put 'Read $!isp-server-timezone: ' ~ $!isp-server-timezone;
     }
     unless $!isp-server-timezone {
         my $proc    = run
@@ -50,7 +49,6 @@ put 'Read $!isp-server-timezone: ' ~ $!isp-server-timezone;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
         $!isp-server-timezone = $0.Int if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) /;
         spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!isp-server-timezone;
-put 'Queried & stashed $!isp-server-timezone: ' ~ $!isp-server-timezone;
     }
     die 'Unable to determine DB2 timezone offset' unless $!isp-server-timezone;
 }
