@@ -6,7 +6,7 @@ use Terminal::ANSIColor;
 
 has Str     $.isp-server            = '';
 has Str:D   $.isp-admin             is required;
-has Int     $.isp-server-timezone;
+has Str     $.isp-server-timezone;
 
 submethod TWEAK {
     my $isp-servers = ISP::Servers.new;
@@ -34,7 +34,7 @@ submethod TWEAK {
         unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
     if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
         my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
-        $!isp-server-timezone = $s.Int;
+        $!isp-server-timezone = $s.comb(2).join(':').Str;
     }
     unless $!isp-server-timezone {
         my $proc    = run
