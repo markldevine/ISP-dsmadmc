@@ -81,9 +81,6 @@ submethod TWEAK {
     else {
         $!seconds-offset-UTC = (($h * 3600) + ($m * 60) + $s);
     }
-put '$!db2-timezone-integer = <' ~ $!db2-timezone-integer ~ '>';
-put '     $!timezone-hhmmss = <' ~ $!timezone-hhmmss ~ '>';
-put '  $!seconds-offset-UTC = <' ~ $!seconds-offset-UTC ~ '>';
 }
 
 method execute (@cmd!) {
@@ -106,11 +103,14 @@ method execute (@cmd!) {
     my $head-key;
     for $proc.out.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
-            my $f1 = $/[0];
+            my $f1 = $/[0].Str;
             my $f2 = Nil;
             if $/[1] {
-                $f2 = $/[1];
-# if it's a datetime, store it accordingly right now as UTC.
+                $f2 = $/[1].Str;
+                if $f2 ~~ / ^ (\d ** 4) '-' (\d ** 2) '-' (\d ** 2) . (\d ** 2) ':' (\d ** 2) ':' (\d ** 2) / {
+                    $f2 = DateTime.new(:year($0.Int), :month($1.Int), :day($2.Int), :hour($3.Int), :minute($4.Int), :second($5.Int));
+                    put $f2;
+                }
             }
             if $head-key && $f1 eq $head-key {
                 $index++;
