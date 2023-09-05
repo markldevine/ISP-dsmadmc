@@ -24,9 +24,8 @@ has Str     $.timezone-hhmmss;          # "-05:00" format
 has Int     $.seconds-offset-UTC;       # seconds from UTC
 
 submethod TWEAK {
-    my $isp-servers = ISP::Servers.new;
-    $!isp-server    = $isp-servers.isp-server($!isp-server);
-    unless $!isp-server {
+    my $SERVERNAME = ISP::Servers.new.isp-server($!isp-server);
+    unless $SERVERNAME {
         $*ERR.put: colored('Unrecognized $!isp-server <' ~ $!isp-server ~ '> specified!', 'red');
         die colored('Either fix your --$isp-server=<value> or update Redis eb:isp:servers:*', 'red');
     }
@@ -62,6 +61,7 @@ submethod TWEAK {
                         'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
                         :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
+warn $stdout;
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
             spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!db2-timezone-integer;
