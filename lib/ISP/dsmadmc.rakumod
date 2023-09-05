@@ -24,25 +24,9 @@ has Str     $.timezone-hhmmss;          # "-05:00" format
 has Int     $.seconds-offset-UTC;       # seconds from UTC
 
 submethod TWEAK {
-    my $SERVERNAME = ISP::Servers.new.isp-server($!isp-server);
-    unless $SERVERNAME {
-        $*ERR.put: colored('Unrecognized $!isp-server <' ~ $!isp-server ~ '> specified!', 'red');
-        die colored('Either fix your --$isp-server=<value> or update Redis eb:isp:servers:*', 'red');
-    }
-    die "Set up '/opt/tivoli/tsm/client/ba/bin/dsm.sys' & /usr/bin/dsmadmc before using this script." unless '/opt/tivoli/tsm/client/ba/bin/dsm.sys'.IO.path:s;
-    my @dsm-sys     = slurp('/opt/tivoli/tsm/client/ba/bin/dsm.sys').lines;
-    my %stanzas;
-    my $current-key = 'ERROR';
-    for @dsm-sys -> $rcd {
-        if $rcd ~~ m:i/ ^ SERVERNAME \s+ <alnum>+? '_' $<server>=(<alnum>+) \s* $ / {
-            $current-key = $/<server>.Str.uc;
-            next;
-        }
-        elsif $rcd ~~ m:i/ ^ \s* TCPS\w* \s+ $<value>=(.+) \s* $/ {
-            %stanzas{$current-key}<TCPSERVERADDRESS> = $/<value>.Str;
-        }
-    }
-    die 'SERVERNAME stanza containing $!isp-server <' ~ $!isp-server.uc ~ "> not found in '/opt/tivoli/tsm/client/ba/bin/dsm.sys'" unless %stanzas{$!isp-server}:exists;
+    my $isp-servers     = ISP::Servers.new();
+    $!isp-server        = $isp-servers.isp-server($!isp-server);
+#   my $serveraddress   = $isp-servers.serveraddress(:$!isp-server, :isp-client($!isp-admin));
     mkdir $*HOME ~ '/.isp/servers/' ~ $!isp-server unless "$*HOME/.isp/servers/$!isp-server".IO.d;
     unlink "$*HOME/.isp/servers/$!isp-server/timezone"
         unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
@@ -61,7 +45,6 @@ submethod TWEAK {
                         'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
                         :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
-warn $stdout;
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
             spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!db2-timezone-integer;
