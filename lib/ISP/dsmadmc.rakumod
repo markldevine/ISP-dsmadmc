@@ -2,6 +2,7 @@ unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
 use ISP::Servers;
 use KHPH;
+use Our::Cache;
 use Terminal::ANSIColor;
 
 has Str     $.isp-server            = '';
@@ -22,37 +23,48 @@ has Str:D   $.isp-admin             is required;
 has Int     $.db2-timezone-integer;     # DB2's original internal representation of the timezone
 has Str     $.timezone-hhmmss;          # "-05:00" format
 has Int     $.seconds-offset-UTC;       # seconds from UTC
+has Bool    $.cache     = False;        # read cache from previous execution results
 
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
 #   my $serveraddress   = $isp-servers.serveraddress(:$!isp-server, :isp-client($!isp-admin));
-    mkdir $*HOME ~ '/.isp/servers/' ~ $!isp-server unless "$*HOME/.isp/servers/$!isp-server".IO.d;
-    unlink "$*HOME/.isp/servers/$!isp-server/timezone"
-        unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
-    if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
-        my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
-        $!db2-timezone-integer = $s.Int;
+    my $cache           = cache(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"), :expire-older-than(now - (60 * 60 * 24)));
+    if $cache {
+        $!db2-timezone-integer = $cache.Int;
     }
-    unless $!db2-timezone-integer {
-        my $proc    = run
-                        '/usr/bin/dsmadmc',
+    else {
+        my @command =   '/usr/bin/dsmadmc',
                         '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
                         '-ID=' ~ $!isp-admin,
                         '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                         '-DATAONLY=YES',
                         '-DISPLAYMODE=LIST',
-                        'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1',
-                        :out;
+                        'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1';
+        my $proc    = run @command, :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
-            spurt "$*HOME/.isp/servers/$!isp-server/timezone", $!db2-timezone-integer;
-        }
-        else {
-            die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)';
+            cache(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"), :data($!db2-timezone-integer.Str));
         }
     }
+    die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
+
+#   mkdir $*HOME ~ '/.isp/servers/' ~ $!isp-server unless "$*HOME/.isp/servers/$!isp-server".IO.d;
+#   unlink "$*HOME/.isp/servers/$!isp-server/timezone"
+#       unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
+#   if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
+#       my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
+#       $!db2-timezone-integer = $s.Int;
+#   }
+#   unless $!db2-timezone-integer {
+#       if $cache {
+#           cache(:meta(@command.join(' ')), :
+#       }
+#       else {
+#       }
+#   }
+
     my $h;
     my $m;
     my $s;
