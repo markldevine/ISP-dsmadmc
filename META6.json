@@ -2,9 +2,9 @@
   "auth": "zef:markldevine",
   "authors": [ "Mark Devine <mark@markdevine.com>" ],
   "depends": [
-    "Data::Dump::Tree",
     "ISP::Servers",
     "KHPH",
+    "Our::Cache",
     "Terminal::ANSIColor"
   ],
   "description": "ISP dsmadmc",
