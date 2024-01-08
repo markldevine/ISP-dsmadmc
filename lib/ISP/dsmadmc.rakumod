@@ -1,5 +1,6 @@
 unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
+use Data::Dump::Tree;
 use ISP::Servers;
 use KHPH;
 use Our::Cache;
@@ -28,7 +29,6 @@ has Bool    $.cache     = False;        # read cache from previous execution res
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
-#   my $serveraddress   = $isp-servers.serveraddress(:$!isp-server, :isp-client($!isp-admin));
     my $cache           = cache(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"), :expire-older-than(now - (60 * 60 * 24)));
     if $cache {
         $!db2-timezone-integer = $cache.Int;
@@ -49,22 +49,6 @@ submethod TWEAK {
         }
     }
     die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
-
-#   mkdir $*HOME ~ '/.isp/servers/' ~ $!isp-server unless "$*HOME/.isp/servers/$!isp-server".IO.d;
-#   unlink "$*HOME/.isp/servers/$!isp-server/timezone"
-#       unless "$*HOME/.isp/servers/$!isp-server/timezone".IO.s && "$*HOME/.isp/servers/$!isp-server/timezone".IO.modified >= (now - (60 * 60 * 24));
-#   if "$*HOME/.isp/servers/$!isp-server/timezone".IO.s {
-#       my $s = slurp "$*HOME/.isp/servers/$!isp-server/timezone";
-#       $!db2-timezone-integer = $s.Int;
-#   }
-#   unless $!db2-timezone-integer {
-#       if $cache {
-#           cache(:meta(@command.join(' ')), :
-#       }
-#       else {
-#       }
-#   }
-
     my $h;
     my $m;
     my $s;
@@ -79,20 +63,21 @@ submethod TWEAK {
 }
 
 method execute (@cmd!) {
-    my $proc        = run
-#                       '/usr/bin/stdbuf',
-#                       '-i0',  
-#                       '-o0',  
-#                       '-e0',
-                        '/usr/bin/dsmadmc',
+    my @meta        =   '/usr/bin/dsmadmc',
                         '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
                         '-ID=' ~ $!isp-admin,
-                        '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                         '-DATAONLY=YES',
                         '-DISPLAYMODE=LIST',
-                        @cmd.flat,
-                        :err,
-                        :out;
+                        @cmd.flat;
+    my $meta        = @meta.join(' ');
+    if $!cache {
+        my $cache   = cache(:$meta);
+        return($cache) if $cache;
+        return Nil;
+    }
+    my @command     = @meta;
+    @command.splice: 3, 0, '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose;
+    my $proc        = run @command, :err, :out;
     my @out;
     my $index       = 0;
     my $head-key;
@@ -117,8 +102,9 @@ method execute (@cmd!) {
     }
     my $err         = $proc.err.slurp(:close);
     put $err        if $err;
-    return(@out)    if @out.elems;
-    return Nil;
+    return Nil      unless @out.elems;
+    cache(:$meta, :data(@out));
+    return(@out);
 }
 
 =finish
