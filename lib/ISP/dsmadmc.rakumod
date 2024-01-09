@@ -64,7 +64,7 @@ submethod TWEAK {
 method execute (@cmd!) {
     my $meta        = @cmd.join(' ');
     if $!cache {
-        my $cache   = cache(:$meta);
+        my $cache   = cache(:$meta, :dir-prefix($!isp-server.uc));
         return $cache if $cache;
         return Nil;
     }
@@ -103,7 +103,7 @@ method execute (@cmd!) {
     my $err         = $proc.err.slurp(:close);
     put $err        if $err;
     return Nil      unless @out.elems;
-    cache(:$meta, :data(@out));
+    cache(:$meta, :dir-prefix($!isp-server.uc), :data(@out));
     return(@out);
 }
 
