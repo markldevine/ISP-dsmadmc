@@ -63,12 +63,18 @@ submethod TWEAK {
 
 method execute (@cmd!) {
     my $meta        = @cmd.join(' ');
+    my $cache;
     if $!cache {
-        my $cache   = cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc));
-        return $cache if $cache;
-        return Nil;
+        $cache      = cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc));
+        return unless $cache;
     }
-    my $proc        =   run
+
+    my @data;
+    my $index       = 0;
+    my $head-key;
+
+    unless $cache {
+        my $proc    = run
                         '/usr/bin/dsmadmc',
                         '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
                         '-ID=' ~ $!isp-admin,
@@ -78,10 +84,13 @@ method execute (@cmd!) {
                         @cmd.flat,
                         :err,
                         :out;
-    my @out;
-    my $index       = 0;
-    my $head-key;
-    for $proc.out.lines -> $line {
+        my $err     = $proc.err.slurp(:close);
+        die $err    if $err;
+        $cache      = $proc.out.slurp(:close).lines;
+#       for $proc.out.lines -> $line {
+    }
+
+    for $cache.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1 = $/[0].Str;
             my $f2 = Nil;
@@ -95,16 +104,14 @@ method execute (@cmd!) {
             }
             elsif ! defined $head-key {
                 $head-key = $f1;
-                @out[$index] = Hash.new;
+                @data[$index] = Hash.new;
             }
-            @out[$index]{$f1} = $f2;
+            @data[$index]{$f1} = $f2;
         }
     }
-    my $err         = $proc.err.slurp(:close);
-    put $err        if $err;
-    return Nil      unless @out.elems;
-    cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :data(@out));
-    return(@out);
+    return Nil      unless @data.elems;
+    cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :@data);
+    return(@data);
 }
 
 =finish
