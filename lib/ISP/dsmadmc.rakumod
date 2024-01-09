@@ -62,21 +62,22 @@ submethod TWEAK {
 }
 
 method execute (@cmd!) {
-    my @meta        =   '/usr/bin/dsmadmc',
-                        '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
-                        '-ID=' ~ $!isp-admin,
-                        '-DATAONLY=YES',
-                        '-DISPLAYMODE=LIST',
-                        @cmd.flat;
-    my $meta        = @meta.join(' ');
+    my $meta        = @cmd.join(' ');
     if $!cache {
         my $cache   = cache(:$meta);
-        return($cache) if $cache;
+        return $cache if $cache;
         return Nil;
     }
-    my @command     = @meta;
-    @command.splice: 3, 0, '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose;
-    my $proc        = run @command, :err, :out;
+    my $proc        =   run
+                        '/usr/bin/dsmadmc',
+                        '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
+                        '-ID=' ~ $!isp-admin,
+                        '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
+                        '-DATAONLY=YES',
+                        '-DISPLAYMODE=LIST',
+                        @cmd.flat,
+                        :err,
+                        :out;
     my @out;
     my $index       = 0;
     my $head-key;
