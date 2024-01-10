@@ -27,7 +27,8 @@ has Bool    $.cache     = False;        # read cache from previous execution res
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
-    my $cache           = cache(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"), :expire-older-than(now - (60 * 60 * 24)));
+    my $cache-file-name = cache-file-name(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"));
+    my $cache           = cache(:$cache-file-name, :expire-older-than(now - (60 * 60 * 24)));
     if $cache {
         $!db2-timezone-integer = $cache.Int;
     }
@@ -43,7 +44,7 @@ submethod TWEAK {
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
-            cache(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"), :data($!db2-timezone-integer.Str));
+            cache(:$cache-file-name, :data($!db2-timezone-integer.Str));
         }
     }
     die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
@@ -61,9 +62,8 @@ submethod TWEAK {
 }
 
 method execute (@cmd!) {
-
-    my $meta        = @cmd.join(' ');
-    my $cache       = cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc)) if $!cache;
+    my $cache-file-name = cache-file-name(:meta(@cmd.join(' ')), :dir-prefix($!isp-server));
+    my $cache           = cache(:$cache-file-name) if $!cache;
     unless $cache {
         my $proc        = run
                             '/usr/bin/dsmadmc',
@@ -72,18 +72,16 @@ method execute (@cmd!) {
                             '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                             '-DATAONLY=YES',
                             '-DISPLAYMODE=LIST',
+                            '-OUTFILE=' ~ $cache-file-name,
                             @cmd.flat,
-                            :err,
-                            :out;
+                            :err;
         my $err         = $proc.err.slurp(:close);
-        put $err        if $err;
-        $cache          = $proc.out.slurp(:close);
-        cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :data($cache));
+        die $err        if $err;
     }
     my @data;
     my $index       = 0;
     my $head-key;
-    for $cache.lines -> $line {
+    for "$cache-file-name".IO.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1 = $/[0].Str;
             my $f2 = Nil;
