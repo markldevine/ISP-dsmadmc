@@ -113,7 +113,6 @@ method execute (@cmd!) {
         }
     }
     return Nil      unless @data.elems;
-#ddt @data;
     return(@data);
 }
 
