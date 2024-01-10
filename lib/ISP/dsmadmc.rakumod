@@ -5,6 +5,8 @@ use KHPH;
 use Our::Cache;
 use Terminal::ANSIColor;
 
+use Data::Dump::Tree;
+
 has Str     $.isp-server            = '';
 has Str:D   $.isp-admin             is required;
 
@@ -69,10 +71,6 @@ method execute (@cmd!) {
         return unless $cache;
     }
 
-    my @data;
-    my $index       = 0;
-    my $head-key;
-
     unless $cache {
         my $proc    = run
                         '/usr/bin/dsmadmc',
@@ -87,9 +85,14 @@ method execute (@cmd!) {
         my $err     = $proc.err.slurp(:close);
         die $err    if $err;
         $cache      = $proc.out.slurp(:close).lines;
-#       for $proc.out.lines -> $line {
+        cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :data($cache));
     }
 
+    my @data;
+    my $index       = 0;
+    my $head-key;
+
+#       for $proc.out.lines -> $line {
     for $cache.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1 = $/[0].Str;
@@ -110,7 +113,7 @@ method execute (@cmd!) {
         }
     }
     return Nil      unless @data.elems;
-    cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :@data);
+#ddt @data;
     return(@data);
 }
 
