@@ -4,8 +4,7 @@
   "depends": [
     "ISP::Servers",
     "KHPH",
-    "Our::Cache",
-    "Terminal::ANSIColor"
+    "Our::Cache"
   ],
   "description": "ISP dsmadmc",
   "license": "Artistic-2.0",

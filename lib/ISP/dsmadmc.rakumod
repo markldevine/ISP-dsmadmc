@@ -3,9 +3,6 @@ unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 use ISP::Servers;
 use KHPH;
 use Our::Cache;
-use Terminal::ANSIColor;
-
-use Data::Dump::Tree;
 
 has Str     $.isp-server            = '';
 has Str:D   $.isp-admin             is required;
@@ -64,35 +61,28 @@ submethod TWEAK {
 }
 
 method execute (@cmd!) {
-    my $meta        = @cmd.join(' ');
-    my $cache;
-    if $!cache {
-        $cache      = cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc));
-        return unless $cache;
-    }
 
+    my $meta        = @cmd.join(' ');
+    my $cache       = cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc)) if $!cache;
     unless $cache {
-        my $proc    = run
-                        '/usr/bin/dsmadmc',
-                        '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
-                        '-ID=' ~ $!isp-admin,
-                        '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
-                        '-DATAONLY=YES',
-                        '-DISPLAYMODE=LIST',
-                        @cmd.flat,
-                        :err,
-                        :out;
-        my $err     = $proc.err.slurp(:close);
-        die $err    if $err;
-        $cache      = $proc.out.slurp(:close).lines;
+        my $proc        = run
+                            '/usr/bin/dsmadmc',
+                            '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
+                            '-ID=' ~ $!isp-admin,
+                            '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
+                            '-DATAONLY=YES',
+                            '-DISPLAYMODE=LIST',
+                            @cmd.flat,
+                            :err,
+                            :out;
+        my $err         = $proc.err.slurp(:close);
+        put $err        if $err;
+        $cache          = $proc.out.slurp(:close);
         cache(:$meta, :dir-prefix($*PROGRAM.IO.basename ~ '/' ~ $!isp-server.uc), :data($cache));
     }
-
     my @data;
     my $index       = 0;
     my $head-key;
-
-#       for $proc.out.lines -> $line {
     for $cache.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1 = $/[0].Str;
@@ -112,8 +102,8 @@ method execute (@cmd!) {
             @data[$index]{$f1} = $f2;
         }
     }
-    return Nil      unless @data.elems;
-    return(@data);
+    return(@data)    if @data.elems;
+    return Nil;
 }
 
 =finish
