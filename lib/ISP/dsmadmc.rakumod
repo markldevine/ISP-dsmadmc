@@ -1,5 +1,6 @@
 unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
+use File::Temp;
 use ISP::Servers;
 use KHPH;
 use Our::Cache;
@@ -65,6 +66,13 @@ method execute (@cmd!) {
     my $cache-file-name = cache-file-name(:meta(@cmd.join(' ')), :dir-prefix($!isp-server));
     my $cache           = cache(:$cache-file-name) if $!cache;
     unless $cache {
+        my $cache-dir   = "$cache-file-name".IO.dirname;
+        my $temp-name;
+        repeat {
+            $temp-name  = ("a".."z","A".."Z",0..9).flat.roll(8).join;
+            my $path    = $cache-dir ~ '/' ~ $temp-name;
+            $temp-name  = '' if "$path".IO.e;
+        } until $temp-name;
         my $proc        = run
                             '/usr/bin/dsmadmc',
                             '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
@@ -72,11 +80,12 @@ method execute (@cmd!) {
                             '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                             '-DATAONLY=YES',
                             '-DISPLAYMODE=LIST',
-                            '-OUTFILE=' ~ $cache-file-name,
+                            '-OUTFILE=' ~ $temp-name,
                             @cmd.flat,
                             :err;
         my $err         = $proc.err.slurp(:close);
         die $err        if $err;
+        rename $temp-name, $cache-file-name or die;
     }
     my @data;
     my $index       = 0;
