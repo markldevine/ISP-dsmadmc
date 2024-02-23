@@ -64,7 +64,8 @@ submethod TWEAK {
 
 method execute (@cmd!) {
     my $cache-file-name = cache-file-name(:meta(@cmd.join(' ')), :dir-prefix($!isp-server));
-    my $cache           = cache(:$cache-file-name) if $!cache;
+    my $cache;
+    $cache              = cache(:$cache-file-name) if $!cache;
     unless $cache {
         my $cache-dir   = "$cache-file-name".IO.dirname;
         my $temp-name;
