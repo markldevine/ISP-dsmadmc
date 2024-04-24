@@ -71,7 +71,12 @@ method execute (@cmd!) {
         repeat {
             $temp-name  = ("a".."z","A".."Z",0..9).flat.roll(8).join;
             my $path    = $cache-dir ~ '/' ~ $temp-name;
-            $temp-name  = '' if "$path".IO.e;
+            if "$path".IO.e {
+                $temp-name  = '';
+            }
+            else {
+                $temp-name  = $path;
+            }
         } until $temp-name;
         my $proc        = run
                             '/usr/bin/dsmadmc',
@@ -85,6 +90,7 @@ method execute (@cmd!) {
                             :err;
         my $err         = $proc.err.slurp(:close);
         die $err        if $err;
+put 'rename ' ~ $temp-name ~ ' ' ~ $cache-file-name;
         rename $temp-name, $cache-file-name or die;
     }
     my @data;
