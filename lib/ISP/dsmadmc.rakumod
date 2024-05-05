@@ -27,10 +27,9 @@ has Bool    $.cache     = False;        # read cache from previous execution res
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
-    my $cache-file-name = cache-file-name(:meta('timezone'), :dir-prefix(".isp/servers/$!isp-server"));
-    my $cache           = cache(:$cache-file-name, :expire-older-than(now - (60 * 60 * 24)));
-    if $cache {
-        $!db2-timezone-integer = $cache.Int;
+    my $db2-cache       = Our::Cache.new(:subdir("/.isp/servers/$!isp-server");
+    if $db2-cache.cache-will-hit(:identifier<timezone>, :purge-older-than(now - (60 * 60 * 24))) {
+        $!db2-timezone-integer = $db2-cache.fetch(:identifier<timezone>).Int;
     }
     else {
         my @command =   '/usr/bin/dsmadmc',
@@ -44,7 +43,7 @@ submethod TWEAK {
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
-            cache(:$cache-file-name, :data($!db2-timezone-integer.Str));
+            $db2-cache.store(:identifier<timezone>, :data($!db2-timezone-integer.Str));
         }
     }
     die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
@@ -61,55 +60,52 @@ submethod TWEAK {
     }
 }
 
+#%%%    method execute-fh (@cmd!) {
 method execute (@cmd!) {
-    my $cache-file-name = cache-file-name(:meta(@cmd.join(' ')), :dir-prefix($!isp-server));
-    my $cache;
-    $cache              = cache(:$cache-file-name) if $!cache;
-    unless $cache {
-        my $cache-dir   = "$cache-file-name".IO.dirname;
-        my $temp-name;
-        repeat {
-            $temp-name  = ("a".."z","A".."Z",0..9).flat.roll(8).join;
-            my $path    = $cache-dir ~ '/' ~ $temp-name;
-            $temp-name  = '' if "$path".IO.e;
-        } until $temp-name;
-        my $proc        = run
-                            '/usr/bin/dsmadmc',
-                            '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
-                            '-ID=' ~ $!isp-admin,
-                            '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
-                            '-DATAONLY=YES',
-                            '-DISPLAYMODE=LIST',
-                            '-OUTFILE=' ~ $temp-name,
-                            @cmd.flat,
-                            :err;
-        my $err         = $proc.err.slurp(:close);
-        die $err        if $err;
-        rename $temp-name, $cache-file-name or die;
-    }
+    my $dsmadmc-cache           = Our::Cache.new(:subdir($!isp-server));
+    my $identifier              = $dsmadmc-cache.identifier(@cmd);
     my @data;
-    my $index       = 0;
+    if $dsmadmc-cache.cache-will-hit(:$identifier) {
+        @data                   = $dsmadmc-cache.fetch(:$identifier).lines;
+put '@data.elems = ' ~ @data.elems;
+    }
+    else {
+        my $cache-file-path     = $dsmadmc-cache.cache-file-path;
+        my $proc                = run
+                                    '/usr/bin/dsmadmc',
+                                    '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
+                                    '-ID=' ~ $!isp-admin,
+                                    '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
+                                    '-DATAONLY=YES',
+                                    '-DISPLAYMODE=LIST',
+                                    '-OUTFILE=' ~ $cache-file-path.Str,
+                                    @cmd.flat,
+                                    :err;
+        my $err                 = $proc.err.slurp(:close);
+        die $err                if $err;
+    }
+    my $index                   = 0;
     my $head-key;
     for "$cache-file-name".IO.lines -> $line {
         if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
-            my $f1 = $/[0].Str;
-            my $f2 = Nil;
+            my $f1              = $/[0].Str;
+            my $f2              = Nil;
             if $/[1] {
-                $f2 = $/[1].Str;
-                $f2 = DateTime.new(:year($0.Int), :month($1.Int), :day($2.Int), :hour($3.Int), :minute($4.Int), :second($5.Int), :timezone(self.seconds-offset-UTC))
+                $f2             = $/[1].Str;
+                $f2             = DateTime.new(:year($0.Int), :month($1.Int), :day($2.Int), :hour($3.Int), :minute($4.Int), :second($5.Int), :timezone(self.seconds-offset-UTC))
                     if $f2 ~~ / ^ (\d ** 4) '-' (\d ** 2) '-' (\d ** 2) \s+ (\d ** 2) ':' (\d ** 2) ':' (\d ** 2) /;
             }
             if $head-key && $f1 eq $head-key {
                 $index++;
             }
             elsif ! defined $head-key {
-                $head-key = $f1;
-                @data[$index] = Hash.new;
+                $head-key       = $f1;
+                @data[$index]   = Hash.new;
             }
-            @data[$index]{$f1} = $f2;
+            @data[$index]{$f1}  = $f2;
         }
     }
-    return(@data)    if @data.elems;
+    return @data                if @data.elems;
     return Nil;
 }
 
