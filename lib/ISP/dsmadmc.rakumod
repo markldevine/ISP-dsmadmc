@@ -27,7 +27,7 @@ has Bool    $.cache     = False;        # read cache from previous execution res
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
-    my $db2-cache       = Our::Cache.new(:subdir("/.isp/servers/$!isp-server");
+    my $db2-cache       = Our::Cache.new(:subdir("/.isp/servers/$!isp-server"));
     if $db2-cache.cache-will-hit(:identifier<timezone>, :purge-older-than(now - (60 * 60 * 24))) {
         $!db2-timezone-integer = $db2-cache.fetch(:identifier<timezone>).Int;
     }
