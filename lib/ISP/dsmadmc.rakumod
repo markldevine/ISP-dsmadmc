@@ -70,7 +70,6 @@ method execute (@cmd!) {
 put '@data.elems = ' ~ @data.elems;
     }
     else {
-        my $cache-file-path     = $dsmadmc-cache.cache-file-path;
         my $proc                = run
                                     '/usr/bin/dsmadmc',
                                     '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
@@ -78,7 +77,7 @@ put '@data.elems = ' ~ @data.elems;
                                     '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                                     '-DATAONLY=YES',
                                     '-DISPLAYMODE=LIST',
-                                    '-OUTFILE=' ~ $cache-file-path.Str,
+                                    '-OUTFILE=' ~ $dsmadmc-cache.cache-file-path.Str,
                                     @cmd.flat,
                                     :err;
         my $err                 = $proc.err.slurp(:close);
@@ -86,8 +85,8 @@ put '@data.elems = ' ~ @data.elems;
     }
     my $index                   = 0;
     my $head-key;
-    for "$cache-file-name".IO.lines -> $line {
-        if $line ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
+    for $dsmadmc-cache.cache-file-name.get -> $record {
+        if $record ~~ / ^ \s* (.+?) ':' \s* (.*) \s* $ / {
             my $f1              = $/[0].Str;
             my $f2              = Nil;
             if $/[1] {
