@@ -65,8 +65,9 @@ submethod TWEAK {
 
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Instant :$purge-older-than) {
-    my $dsmadmc-cache           = Our::Cache.new(:subdir($!isp-server), :$purge-older-than);
-    $dsmadmc-cache.set-identifier(:identifier(@cmd));
+    my $dsmadmc-cache           = Our::Cache.new(:subdir($!isp-server));
+    $dsmadmc-cache.set-identifier(:identifier(@cmd), :$purge-older-than);
+put '$dsmadmc-cache.cache-hit = ' ~ $dsmadmc-cache.cache-hit ~ "\n\t|" ~ @cmd.join(' ') ~ '|';
     my @data;
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $proc                = run
