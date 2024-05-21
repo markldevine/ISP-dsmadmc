@@ -65,8 +65,9 @@ submethod TWEAK {
 
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, Instant :$purge-older-than) {
-    my IO::Path $sd            .= new: $*PROGRAM.IO.basename ~ '/' ~ $!isp-server;
-    $sd.add: $subdir            if $subdir;
+    my $sd                      = IO::Path.new: $*PROGRAM.IO.basename;
+    $sd                         = $sd.add($!isp-server);
+    $sd                         = $sd.add: $subdir if $subdir;
     my $dsmadmc-cache           = Our::Cache.new(:subdir($sd.Str));
     $dsmadmc-cache.set-identifier(:identifier(@cmd), :$purge-older-than);
     my @data;
