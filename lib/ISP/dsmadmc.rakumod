@@ -1,5 +1,7 @@
 unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
+#%%%    Add $.cache-expire-instant...
+
 use ISP::Servers;
 use KHPH;
 use Our::Cache;
@@ -62,8 +64,8 @@ submethod TWEAK {
 }
 
 #%%%    method execute-fh (@cmd!) {
-method execute (@cmd!) {
-    my $dsmadmc-cache           = Our::Cache.new(:subdir($!isp-server));
+method execute (@cmd!, Instant :$purge-older-than) {
+    my $dsmadmc-cache           = Our::Cache.new(:subdir($!isp-server), :$purge-older-than);
     $dsmadmc-cache.set-identifier(:identifier(@cmd));
     my @data;
     unless self.cache && $dsmadmc-cache.cache-hit {
