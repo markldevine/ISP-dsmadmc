@@ -1,7 +1,5 @@
 unit class ISP::dsmadmc:api<1>:auth<Mark Devine (mark@markdevine.com)>;
 
-#%%%    Add $.cache-expire-instant...
-
 use ISP::Servers;
 use KHPH;
 use Our::Cache;
@@ -29,10 +27,10 @@ has Bool    $.cache     = False;        # read cache from previous execution res
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
-    my $db2-cache       = Our::Cache.new(:subdir("/.isp/servers/$!isp-server"));
-    $db2-cache.set-identifier(:identifier<DB2timezone>, :purge-older-than(now - (60 * 60 * 24)));
+    my $identifier      = 'DB2timezone';
+    my $db2-cache       = Our::Cache.new(:$identifier);
     if $db2-cache.cache-hit {
-        $!db2-timezone-integer = $db2-cache.fetch(:identifier<DB2timezone>).Int;
+        $!db2-timezone-integer = $db2-cache.fetch(:$identifier).Int;
     }
     else {
         my @command =   '/usr/bin/dsmadmc',
@@ -44,10 +42,10 @@ submethod TWEAK {
            'SELECT', 'CURRENT', 'TIMEZONE', 'AS', 'TIMEZONE', 'FROM', 'SYSIBM.SYSDUMMY1';
         my $proc    = run @command, :out;
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
-            if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
-                $!db2-timezone-integer = $0.Int;
-                $db2-cache.store(:identifier<DB2timezone>, :data($!db2-timezone-integer.Str));
-            }
+        if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
+            $!db2-timezone-integer = $0.Int;
+            $db2-cache.store(:$identifier, :data($!db2-timezone-integer.Str), :expire-after(DateTime(now + (60 * 60 * 24))));
+        }
     }
     die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
     my $h;
@@ -64,14 +62,11 @@ submethod TWEAK {
 }
 
 #%%%    method execute-fh (@cmd!) {
-method execute (@cmd!, Str :$subdir, Instant :$purge-older-than) {
-    my $sd                      = IO::Path.new: $*PROGRAM.IO.basename;
-    $sd                         = $sd.add($!isp-server);
-    $sd                         = $sd.add: $subdir if $subdir;
-    my $dsmadmc-cache           = Our::Cache.new(:subdir($sd.Str));
-    $dsmadmc-cache.set-identifier(:identifier(@cmd), :$purge-older-than);
-    my @data;
+method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
+    my $identifier              = @cmd.flat.join;
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier);
     unless self.cache && $dsmadmc-cache.cache-hit {
+        my $path                = $dsmadmc-cache.temp-write-path;
         my $proc                = run
                                     '/usr/bin/dsmadmc',
                                     '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,
@@ -79,16 +74,19 @@ method execute (@cmd!, Str :$subdir, Instant :$purge-older-than) {
                                     '-PA=' ~ KHPH.new(:stash-path($*HOME ~ '/.isp/admin/' ~ $!isp-server.uc ~ '/' ~ $!isp-admin.uc ~ '.khph')).expose,
                                     '-DATAONLY=YES',
                                     '-DISPLAYMODE=LIST',
-                                    '-OUTFILE=' ~ $dsmadmc-cache.cache-file-path.Str,
+                                    '-OUTFILE=' ~ $path.Str,
                                     @cmd.flat,
                                     :err;
         my $err                 = $proc.err.slurp(:close);
         die $err                if $err;
-        $dsmadmc-cache.store(:identifier(@cmd), :path($dsmadmc-cache.cache-file-path));     # commit
+        $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
     }
+
+    my $fh                      = $dsmadmc-cache.fetch-fh(:$identifier);
+
+    my @data;
     my $index                   = 0;
     my $head-key;
-    my $fh                      = $dsmadmc-cache.fetch-fh(:identifier(@cmd));
     while !$fh.eof {
         my $record              = $fh.get;
         next                    unless $record;
