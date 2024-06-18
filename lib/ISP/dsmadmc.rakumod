@@ -66,7 +66,7 @@ method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
     my $dsmadmc-cache           = Our::Cache.new(:$identifier);
     unless self.cache && $dsmadmc-cache.cache-hit {
-        my $path                = $dsmadmc-cache.temp-write-path;
+        my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
                                     '/usr/bin/dsmadmc',
                                     '-SE=' ~ $!isp-admin ~ '_' ~ $!isp-server.uc,

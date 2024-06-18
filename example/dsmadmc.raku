@@ -1,6 +1,6 @@
 #!/usr/bin/env raku
 
-use lib '/home/mdevine/github.com/ISP-dsmadmc/lib';
+#use lib '/home/mdevine/github.com/ISP-dsmadmc/lib';
 
 use ISP::dsmadmc;
 use Data::Dump::Tree;
