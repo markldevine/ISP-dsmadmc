@@ -64,7 +64,7 @@ submethod TWEAK {
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
-    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :$expire-after);
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier);
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
@@ -79,8 +79,7 @@ method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
                                     :err;
         my $err                 = $proc.err.slurp(:close);
         die $err                if $err;
-#       $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
-        $dsmadmc-cache.store(:$identifier, :purge-source, :$path);
+        $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
     }
 
     my $fh                      = $dsmadmc-cache.fetch-fh(:$identifier);
