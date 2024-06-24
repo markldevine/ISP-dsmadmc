@@ -23,7 +23,6 @@ has Int         $.db2-timezone-integer;     # DB2's original internal representa
 has Str         $.timezone-hhmmss;          # "-05:00" format
 has Int         $.seconds-offset-UTC;       # seconds from UTC
 has Bool        $.cache     = False;        # read cache from previous execution results
-has DateTime    $.expire-after;             # set a purge timer for cache
 
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
@@ -65,7 +64,7 @@ submethod TWEAK {
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
-    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :$!expire-after);
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :$expire-after);
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
@@ -80,7 +79,8 @@ method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
                                     :err;
         my $err                 = $proc.err.slurp(:close);
         die $err                if $err;
-        $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
+#       $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
+        $dsmadmc-cache.store(:$identifier, :purge-source, :$path);
     }
 
     my $fh                      = $dsmadmc-cache.fetch-fh(:$identifier);
