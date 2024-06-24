@@ -19,10 +19,11 @@ has Str:D   $.isp-admin             is required;
 #
 #   Being a signed integer, conversion is required before it is useful.
 
-has Int     $.db2-timezone-integer;     # DB2's original internal representation of the timezone
-has Str     $.timezone-hhmmss;          # "-05:00" format
-has Int     $.seconds-offset-UTC;       # seconds from UTC
-has Bool    $.cache     = False;        # read cache from previous execution results
+has Int         $.db2-timezone-integer;     # DB2's original internal representation of the timezone
+has Str         $.timezone-hhmmss;          # "-05:00" format
+has Int         $.seconds-offset-UTC;       # seconds from UTC
+has Bool        $.cache     = False;        # read cache from previous execution results
+has DateTime    $.expire-after;             # set a purge timer for cache
 
 submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
@@ -64,7 +65,7 @@ submethod TWEAK {
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
-    my $dsmadmc-cache           = Our::Cache.new(:$identifier);
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :$!expire-after);
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
