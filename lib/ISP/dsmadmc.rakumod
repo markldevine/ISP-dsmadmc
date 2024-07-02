@@ -30,7 +30,7 @@ submethod TWEAK {
     my $identifier      = 'DB2timezone';
     my $db2-cache       = Our::Cache.new(:$identifier, :subdirs('dsmadmc', $!isp-server));
     if $db2-cache.cache-hit {
-        $!db2-timezone-integer = $db2-cache.fetch(:$identifier).Int;
+        $!db2-timezone-integer = $db2-cache.fetch().Int;
     }
     else {
         my @command =   '/usr/bin/dsmadmc',
@@ -44,7 +44,7 @@ submethod TWEAK {
         my $stdout  = slurp $proc.out, :close;      # Str $stdout = "TIMEZONE: -50000\n\n"
         if $stdout ~~ / ^ 'TIMEZONE:' \s+ ('-'*\d+) / {
             $!db2-timezone-integer = $0.Int;
-            $db2-cache.store(:$identifier, :data($!db2-timezone-integer.Str), :expire-after(DateTime(now + (60 * 60 * 24))));
+            $db2-cache.store(:data($!db2-timezone-integer.Str), :expire-after(DateTime(now + (60 * 60 * 24))));
         }
     }
     die 'Could not obtain DB2 TIMEZONE (SELECT CURRENT TIMEZONE AS TIMEZONE FROM SYSIBM.SYSDUMMY1)' unless $!db2-timezone-integer;
@@ -61,10 +61,11 @@ submethod TWEAK {
     }
 }
 
-#%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
-    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :subdirs('dsmadmc', $!isp-server));
+    my @subdirs                 = 'dsmadmc', $!isp-server;
+    @subdirs.append:            $subdir with $subdir;
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :@subdirs);
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
@@ -79,10 +80,10 @@ method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
                                     :err;
         my $err                 = $proc.err.slurp(:close);
         die $err                if $err;
-        $dsmadmc-cache.store(:$identifier, :$expire-after, :purge-source, :$path);
+        $dsmadmc-cache.store(:$expire-after, :purge-source, :$path);
     }
 
-    my $fh                      = $dsmadmc-cache.fetch-fh(:$identifier);
+    my $fh                      = $dsmadmc-cache.fetch-fh;
 
     my @data;
     my $index                   = 0;
