@@ -28,7 +28,7 @@ submethod TWEAK {
     my $isp-servers     = ISP::Servers.new();
     $!isp-server        = $isp-servers.isp-server($!isp-server);
     my $identifier      = 'DB2timezone';
-    my $db2-cache       = Our::Cache.new(:$identifier);
+    my $db2-cache       = Our::Cache.new(:$identifier, :subdirs('dsmadmc', $!isp-server));
     if $db2-cache.cache-hit {
         $!db2-timezone-integer = $db2-cache.fetch(:$identifier).Int;
     }
@@ -64,7 +64,7 @@ submethod TWEAK {
 #%%%    method execute-fh (@cmd!) {
 method execute (@cmd!, Str :$subdir, DateTime :$expire-after) {
     my $identifier              = @cmd.flat.join;
-    my $dsmadmc-cache           = Our::Cache.new(:$identifier);
+    my $dsmadmc-cache           = Our::Cache.new(:$identifier, :subdirs('dsmadmc', $!isp-server));
     unless self.cache && $dsmadmc-cache.cache-hit {
         my $path                = $dsmadmc-cache.temp-write-path or die;
         my $proc                = run
